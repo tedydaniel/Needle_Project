@@ -1,8 +1,8 @@
 """
-This class should hold some function to analyze the stock using www.alphavantage.co data.
+This class should hold some function to analyze the stock using www.alphavantage.co API.
 Connection to internet required.
 For now the main two indexes we work with are the NASDAQ and the DOW-JONES.
-For each week we perform t-test to filter by p-value.
+For each week (5 days) we perform t-test to filter by p-value.
 """
 
 import urllib.request, json
