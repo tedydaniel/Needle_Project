@@ -18,7 +18,7 @@ RangeMonth = 6
 class StockData:
 
 
-    def __init__(self, index='NDAQ', isDJ = False):
+    def __init__(self, index='NDAQ'):
         self.index = index
         self.dates = []
         self.opens = []
@@ -26,10 +26,7 @@ class StockData:
         self.lows = []
         self.closes = []
         self.volumes = []
-        if not isDJ:
-            self.initialize_data()
-        else:
-            self.get_DJ_data("DJIA_table.csv")
+        self.initialize_data()
 
 
 
@@ -84,19 +81,9 @@ class StockData:
             data = json.loads(response.read().decode())['Time Series (Daily)']
             self.sort_by_date(data=data)
         except KeyError:
-            print("KeyError")
+            print("KeyError(Probably no network)")
             self.initialize_data()
 
-
-
-    def get_DJ_data(self, path):
-        file = open(path, 'r')
-        reader = csv.reader(file)
-        data = {}
-        next(reader)
-        for row in reader:
-            data[row[0]] = {'1. open': row[1], '2. high': row[2], '3. low': row[3], '4. close': row[4], '5. volume': row[5]}
-        self.sort_by_date(data)
 
 
     def show_1_day_change(self, data, title = "No title"):
@@ -127,14 +114,25 @@ class StockData:
         return dates
 
 
-    def t_test(self, by='Volume', num_samples = 5):
-        sample1 = self.volumes[:num_samples]
+    def t_test(self, by='volumes', num_samples = 6):
+        data = []
+        if by == 'volumes':
+            data = self.volumes
+        elif by == 'closes':
+            data = self.closes
+        elif by == 'opens':
+            data = self.opens
+        elif by == 'highs':
+            data = self.highs
+        elif by == 'lows':
+            data = self.lows
+        sample1 = data[:num_samples]
         dates_to_pvals = {}
-        for num in range(num_samples, len(self.volumes) - num_samples):
-            sample2 = self.volumes[num:num + num_samples]
+        for num in range(num_samples, len(data) - num_samples):
+            sample2 = data[num:num + num_samples]
             if num + 2 < len(self.dates):
                 dates_to_pvals[self.dates[num]] = ttest_ind(sample1, sample2)[1]
-            sample1 = self.volumes[num - num_samples:num]
+            sample1 = data[num - num_samples:num]
         return dates_to_pvals
 
 
@@ -153,11 +151,11 @@ def main():
     sp500 = StockData(index='^GSPC')
     dji = StockData(index='^DJI')
     rut = StockData(index='^RUT')
-    print(to_list_by_pval(nasdaq.t_test(), pval=0.01))
-    print(to_list_by_pval(msft.t_test(), pval=0.01))
-    print(to_list_by_pval(sp500.t_test(), pval=0.01))
-    print(to_list_by_pval(dji.t_test(), pval=0.01))
-    print(to_list_by_pval(rut.t_test(), pval=0.01))
+    print(to_list_by_pval(nasdaq.t_test(), pval=0.00001))
+    print(to_list_by_pval(msft.t_test(), pval=0.00001))
+    print(to_list_by_pval(sp500.t_test(), pval=0.00001))
+    print(to_list_by_pval(dji.t_test(), pval=0.00001))
+    print(to_list_by_pval(rut.t_test(), pval=0.00001))
 
 
 
