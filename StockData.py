@@ -1,10 +1,15 @@
 """
-This class should hold some function to analyze the stock using www.alphavantage.co data
+This class should hold some function to analyze the stock using www.alphavantage.co data.
+Connection to internet required.
+For now the main two indexes we work with are the NASDAQ and the DOW-JONES.
+For each week we perform t-test to filter by p-value.
 """
 
 import urllib.request, json
 import numpy as np
 import matplotlib.pyplot as plt
+import csv
+from scipy.stats import ttest_ind
 
 tag = ['1. open', '2. high', '3. low', '4. close', '5. volume']
 NumYears = 5
@@ -13,7 +18,7 @@ RangeMonth = 6
 class StockData:
 
 
-    def __init__(self, index):
+    def __init__(self, index='NDAQ', isDJ = False):
         self.index = index
         self.dates = []
         self.opens = []
@@ -21,12 +26,17 @@ class StockData:
         self.lows = []
         self.closes = []
         self.volumes = []
-        self.initializeData()
+        if not isDJ:
+            self.initialize_data()
+        else:
+            self.get_DJ_data("DJIA_table.csv")
 
-    def getDates(self):
+
+
+    def get_dates(self):
         return self.dates
 
-    def getOpens(self):
+    def get_opens(self):
         return self.opens
 
     def getLows(self):
@@ -42,31 +52,8 @@ class StockData:
         return self.volumes
 
 
-    def normalizedVolumes(self):
-        """
-        :return: Takes the ration of volume and the mean volume over about a year
-        """
-        indicies = []
-        for i in range(self.dates[0].shape[0]):
-            tmp_idx = [i]
-            for j in range(1, len(self.dates)):
-                tmp_idx += list(np.where(self.dates[j] == self.dates[0][i])[0])
-            if len(tmp_idx) == len(self.dates):
-                indicies.append(tmp_idx)
-        indicies = np.array(indicies)
-        volumes = np.zeros(indicies.shape[0]).astype(np.float64)
-        for i in range(indicies.shape[1]):
-            volumes += self.volumes[i][indicies[:, i]]
-        volumes = volumes / np.mean(volumes)
-        return volumes, indicies
 
-
-    def initializeData(self, years = 6):
-        url = "https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=" +\
-              self.index + "&outputsize=full&apikey=S86T4IDUATTIULH0"
-        response = urllib.request.urlopen(url)
-        data = json.loads(response.read().decode())['Time Series (Daily)']
-
+    def sort_by_date(self, data, years = 15):
         for year in range(2018 - years, 2018):
             for month in range(1, 13):
                 if month < 10:
@@ -85,59 +72,98 @@ class StockData:
 
 
 
+    def initialize_data(self):
+        """
+        :param years: num of years to look at
+        :return: initializing the fields
+        """
+        url = "https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=" +\
+              self.index + "&outputsize=full&apikey=S86T4IDUATTIULH0"
+        response = urllib.request.urlopen(url)
+        try:
+            data = json.loads(response.read().decode())['Time Series (Daily)']
+            self.sort_by_date(data=data)
+        except KeyError:
+            print("KeyError")
+            self.initialize_data()
+
+
+
+    def get_DJ_data(self, path):
+        file = open(path, 'r')
+        reader = csv.reader(file)
+        data = {}
+        next(reader)
+        for row in reader:
+            data[row[0]] = {'1. open': row[1], '2. high': row[2], '3. low': row[3], '4. close': row[4], '5. volume': row[5]}
+        self.sort_by_date(data)
+
+
     def show_1_day_change(self, data, title = "No title"):
+        """
+        :param data: the data to plot
+        :param title: title
+        :return: show a plot with the percent of the change from some day to the following day
+        """
         np_data = np.array(data)
         to_sub = np.hstack((np.array([0]), np_data))
         to_plot = ((np_data - to_sub[:-1])/np_data) * 100
-        # to_plot = to_plot / np.max(to_plot[1:])
         plt.plot(to_plot[1:])
         plt.title(title)
         plt.show()
         return to_plot
 
 
-    def find_dates_with_change(self, data, treshold = 2):
+    def find_dates_with_change(self, data, threshold = 2):
+        """
+        :param data: the data to look at
+        :param treshold: change in percents, positive value
+        :return:
+        """
         dates = []
         for i in range(len(data)):
-            if data[i] > treshold or data[i] < -treshold:
-                dates.append(self.dates[i])
+            if data[i] > threshold or data[i] < -threshold:
+                dates.append((self.dates[i], data[i]))
         return dates
 
 
+    def t_test(self, by='Volume', num_samples = 5):
+        sample1 = self.volumes[:num_samples]
+        dates_to_pvals = {}
+        for num in range(num_samples, len(self.volumes) - num_samples):
+            sample2 = self.volumes[num:num + num_samples]
+            if num + 2 < len(self.dates):
+                dates_to_pvals[self.dates[num]] = ttest_ind(sample1, sample2)[1]
+            sample1 = self.volumes[num - num_samples:num]
+        return dates_to_pvals
 
 
 
-# #, 'SPXL', 'MSFT'
-sd = StockData('NDAQ')
-sd.show_1_day_change(sd.getHighs())
-# print(sd.getOpens())
-
-# plt.plot(range(len(sd.getOpens())),sd.getOpens())
-# plt.title('Opens')
-# plt.show()
-# plt.plot(sd.getCloses())
-# plt.title('Closes')
-# plt.show()
-# plt.plot(sd.getLows())
-# plt.title('Lows')
-# plt.show()
-# plt.plot(sd.getHighs())
-# plt.title('Highs')
-# plt.show()
-# plt.plot(sd.getVolumes())
-# plt.title('Volumes')
-# plt.show()
-
-# volumes = sd.getVolumes()
-# normVols, indicies = sd.normalizedVolumes()
-# for v in range(len(volumes)):
-#     plt.plot(volumes[v][indicies[:, v]] / np.mean(volumes[v][indicies[:, v]]))
-# dates = np.array(sd.getDates())
-# print(dates[0][np.where(normVols > 0)[0]])
-# # plt.plot(normVols)
-# plt.show()
-# for vol in range(normVols.shape[0]):
-#     print(dates[vol], normVols[vol])
+def to_list_by_pval(data, pval=0.05):
+    nas_sig = []
+    for key in data.keys():
+        if data[key] <= pval:
+            nas_sig.append(key)
+    return sorted(nas_sig)
 
 
+def main():
+    nasdaq = StockData(index='NDAQ')
+    msft = StockData(index='MSFT')
+    sp500 = StockData(index='^GSPC')
+    dji = StockData(index='^DJI')
+    rut = StockData(index='^RUT')
+    print(to_list_by_pval(nasdaq.t_test(), pval=0.01))
+    print(to_list_by_pval(msft.t_test(), pval=0.01))
+    print(to_list_by_pval(sp500.t_test(), pval=0.01))
+    print(to_list_by_pval(dji.t_test(), pval=0.01))
+    print(to_list_by_pval(rut.t_test(), pval=0.01))
+
+
+
+
+
+
+if __name__ == '__main__':
+    main()
 
