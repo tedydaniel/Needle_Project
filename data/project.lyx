@@ -1,0 +1,473 @@
+#LyX 2.2 created this file. For more info see http://www.lyx.org/
+\lyxformat 508
+\begin_document
+\begin_header
+\save_transient_properties true
+\origin unavailable
+\textclass extarticle
+\use_default_options true
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman "default" "default"
+\font_sans "default" "default"
+\font_typewriter "default" "default"
+\font_math "auto" "auto"
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100 100
+\font_tt_scale 100 100
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\float_placement t
+\paperfontsize default
+\spacing single
+\use_hyperref false
+\papersize default
+\use_geometry true
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine basic
+\cite_engine_type default
+\biblio_style plain
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 1
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\leftmargin 3cm
+\topmargin 3cm
+\rightmargin 3cm
+\bottommargin 3cm
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Title
+A NEEDLE IN A DATA HAYSTACK(67978)
+\begin_inset Newline newline
+\end_inset
+
+Project: Prediction of stock market changes using
+\begin_inset Newline newline
+\end_inset
+
+news titles.
+\end_layout
+
+\begin_layout Author
+Daniel Nudelman, daniel.nudelman@mail.huji.ac.il, tedy
+\begin_inset Newline newline
+\end_inset
+
+Rotem Tal, rotem.tal3@mail.huji.ac.il, rotem.tal
+\begin_inset Newline newline
+\end_inset
+
+Eliezer Shapira, eliezer.shapira@mail.huji.ac.il, e30570261
+\end_layout
+
+\begin_layout Date
+3.3.2019
+\end_layout
+
+\begin_layout Section
+Problem Description:
+\end_layout
+
+\begin_layout Standard
+\begin_inset space ~
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+We believe that the stock markets are affected by global events, which in
+ turn are reported in the global media.
+ Our hypothesis is that there exist some correlation between the titles
+ representing events reported in media and the stock markets.
+ We will use some basic statistics and NLP methods learned in class to discover
+ this correlation and use it to predict the upcomming changes in stock markets
+ sampelling the titles of news.
+ 
+\end_layout
+
+\begin_layout Section
+Data:
+\end_layout
+
+\begin_layout Standard
+\begin_inset space ~
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+There are two main sources of data in this project:
+\end_layout
+
+\begin_layout Standard
+Stock Markets: all the data collected online using the Alpha Vantage API
+ (https://www.alphavantage.co/documentation/).
+ The Alpha Vantage project provides realtime and historical stock data.
+ The format of the data is xml with the next schema: 
+\begin_inset Formula $\{date:\{1.open,2.high,3.low,4.close,5.volume\},...\}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+Headlines: We used a dataset of reddit posts from the category 
+\begin_inset Quotes eld
+\end_inset
+
+world news
+\begin_inset Quotes erd
+\end_inset
+
+, there were 509236 records spanning from 25-01-2008 to 22-11-2016, the
+ dataset is available free on kaggle under the name 
+\begin_inset Quotes eld
+\end_inset
+
+reddit_worldnews_start_to_2016-11-22.csv
+\begin_inset Quotes erd
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Section
+Solution:
+\end_layout
+
+\begin_layout Standard
+\begin_inset space ~
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Our goal is to find a connection between events and stock market changes
+ under the assumption that some range of k-shingles may preserve the nature
+ of an event enough to separate between stock markets events and non-events.
+ We used several approaches:
+\end_layout
+
+\begin_layout Enumerate
+
+\series bold
+Stock Market Events
+\series default
+: One of our main work assumption is that the media affects the markets
+ within a day or two, thus we decided to work with the daily data and look
+ at the daily volumes of trade (total quantity of money traded).
+ We assume that during global events the volumes of trades are changing,
+ thus we decided to define an event using independent t-test.
+ For each date we decided to take sample of volumes for 5 days before the
+ date (including), and sample of volumes 5 days after the date and apply
+ t-test on this two samples.
+ We define the 
+\series bold
+stock market event
+\series default
+ as a date for which the t-test p-value 
+\begin_inset Formula $\leq$
+\end_inset
+
+ 0.01.
+ We also decided to use another method and generate another list of dates
+ to check ourselves.
+ Each date were compared to the next date by looking at the ratio of volumes.
+ If the ratio is > 2 or < 0.5 we decided to label this date as an event.
+ 
+\end_layout
+
+\begin_layout Enumerate
+
+\series bold
+Graph representation of events
+\series default
+: We define a node for each date of stock market event (nodes from a training
+ set), with each node represented by the top scoring 
+\begin_inset Formula $d\in\mathbb{N}$
+\end_inset
+
+ k-shignles according to the TF-IDF (term frequency-inverse document frequency)
+ appearing in headlines corresponding to that date and some time delta previous
+ to that date (that is, some time period which we suspected might also have
+ an effect on that date).
+ We defined edges between nodes if the k-shingles that they share are more
+ than some threshold.
+ This idea originally was ment to be for visualization, but we decided to
+ try to make a prediction based on the strength of a connection to the graph.
+ We tried several approaches to define the strrength of connection: a simplistic
+ approach defining the strenght of a connection for an event's k-shignle
+ representation 
+\begin_inset Formula $e\in\Sigma^{d}$
+\end_inset
+
+ as 
+\begin_inset Formula $S:\Sigma\rightarrow\mathbb{R}$
+\end_inset
+
+ 
+\begin_inset Formula $S(e)=|\{v_{i}|e\cap v_{i}\neq\emptyset\}|$
+\end_inset
+
+, and 
+\begin_inset Formula $S':\Sigma\rightarrow\mathbb{R}$
+\end_inset
+
+ 
+\begin_inset Formula $S'(e)=\frac{\sum_{i\in[n]}|v_{i}\cap e|}{n}$
+\end_inset
+
+, where 
+\begin_inset Formula $n=|\{v_{i}|v_{i}\cap e\neq\emptyset\}|$
+\end_inset
+
+ that is the average length of shared shingles considering only nodes that
+ share shingles with the current event.
+\end_layout
+
+\begin_layout Enumerate
+
+\series bold
+Likelihood ratio:
+\series default
+ The main idea is to work with two hypotheses.
+ The null hypothesis states that the chances of some word to appear within
+ an event is random and the alternative hypothesis states that the chance
+ of some words to appear within some event is higher of other words.
+ If we define 
+\begin_inset Formula $\Sigma$
+\end_inset
+
+ to be the space of all the words from our data denoted 
+\begin_inset Formula $D\subseteq2^{\Sigma}$
+\end_inset
+
+ (
+\begin_inset Formula $D$
+\end_inset
+
+ is our data of headlines, where each 
+\begin_inset Formula $d\in D$
+\end_inset
+
+ is a single headline such that 
+\begin_inset Formula $d$
+\end_inset
+
+ is a submultiset of 
+\begin_inset Formula $\Sigma$
+\end_inset
+
+, we define the null hypothesis likelihood for 
+\begin_inset Formula $w\in\Sigma$
+\end_inset
+
+ as 
+\begin_inset Formula $P(w)=\frac{\#w\in D}{\sum_{d\in D}|d|}$
+\end_inset
+
+.
+ For the alternative hypothesis denote 
+\begin_inset Formula $E\subseteq D$
+\end_inset
+
+ as the set of event related headlines and the likelihood to be 
+\begin_inset Formula $P(w\in E)=\frac{\#w\in E}{\sum_{e\in E}|e|}.$
+\end_inset
+
+ Then we calculate the likelihood ratio 
+\begin_inset Formula $L(w)=\frac{p(w\in E)}{p(w)}$
+\end_inset
+
+ for 
+\begin_inset Formula $w\in\Sigma,$
+\end_inset
+
+ and the score for a headline is 
+\begin_inset Formula $s(d)=\sum_{w\in d}L(w)$
+\end_inset
+
+.
+ To conclude about an event which occured on some date 
+\begin_inset Formula $m$
+\end_inset
+
+ we take all the headlines from that date and calculate: 
+\begin_inset Formula $Score(m)=\sum_{d\in D\,s.t.date(d)=m}s(d)$
+\end_inset
+
+.
+ Eventually, we would like to find a threshold score 
+\begin_inset Formula $t$
+\end_inset
+
+ such that events with score higher than 
+\begin_inset Formula $t$
+\end_inset
+
+ will be labeled, with high probability, as stock market events.
+ 
+\end_layout
+
+\begin_layout Section
+Experiments:
+\end_layout
+
+\begin_layout Standard
+\begin_inset space ~
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+
+\series bold
+Evaluation Criteria: 
+\end_layout
+
+\begin_layout Standard
+We divided our data to three groups: non-event data (NED), train event data
+ (TRED), test event data (TED).
+ To learn about the behavior of the data we used TRED, then we estimated
+ our algorithm on TED and used NED to compare between the scores of these
+ three samples.
+ Using Kruskal Wallis test (which determines whether the samples origin
+ in the same distribution) we ensured that our result are not chance (p-value
+\begin_inset Formula $<0.01$
+\end_inset
+
+).
+\end_layout
+
+\begin_layout Standard
+
+\series bold
+Setup: 
+\end_layout
+
+\begin_layout Standard
+To get the dates for training and testing we decided to work with the Dow
+ Jones index and to look for events with p-value 
+\begin_inset Formula $\leq$
+\end_inset
+
+ 0.01.
+ Using this approach we got 160 dates.
+ 
+\end_layout
+
+\begin_layout Standard
+
+\series bold
+Results:
+\end_layout
+
+\begin_layout Standard
+
+\series bold
+Visualization:
+\end_layout
+
+\begin_layout Standard
+\align center
+\begin_inset Graphics
+	filename hist_likelihood_lyx.png
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\align center
+Figure 1 (likelihood): As expected the train events get much higher scores
+ (train score above 100 were excluded for readability),
+\end_layout
+
+\begin_layout Standard
+\align center
+but in addition we can see that some of the test events gets higher scores
+ than non-events.
+\end_layout
+
+\begin_layout Standard
+\align center
+For example for score > 5 there are only test or train events.
+ 
+\end_layout
+
+\begin_layout Standard
+
+\series bold
+Impediments: 
+\end_layout
+
+\begin_layout Section
+Future Work:
+\end_layout
+
+\begin_layout Standard
+\begin_inset space ~
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+First of all we believe that by increasing the amounts of data and including
+ not just the headlines but the whole articles would improve the analysis.
+ In addition we didn't try to apply some formal ML methods, for example
+ trying neural networks to learn the data sounds like a good start.
+ 
+\end_layout
+
+\begin_layout Section
+Brief Conclusion:
+\end_layout
+
+\end_body
+\end_document
