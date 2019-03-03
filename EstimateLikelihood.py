@@ -2,6 +2,7 @@ import csv
 import nltk
 from nltk.stem.snowball import EnglishStemmer
 import numpy as np
+import pandas as pd
 import time
 import matplotlib.pyplot as plt
 import random
@@ -144,6 +145,20 @@ class EstimateLikelihood():
         print(len(test_score))
         print(len(train_score))
         print("kw p val: " + str(stat.kruskal(scores, test_score)[1]))
+        thr = [1.4,1.9,2.3,2.5,2.7,3,3.5,4]
+        tp, fp = [], []
+        n, m = len(test_score), len(scores)
+        for t in thr:
+            tp.append(len([i for i in test_score if i>t])/n)
+            fp.append(len([i for i in scores if i > t])/m)
+        plt.plot([1]+ fp+[0], [1]+tp+[0])
+        plt.plot([0,1],[0,1], color='k', linestyle='-', linewidth=2)
+        plt.xlabel("FPR")
+        plt.ylabel("TPR")
+        plt.title("ROC curve")
+        plt.savefig("ROC.png")
+        plt.cla()
+        plt.clf()
         plt.hist([scores, test_score, train_score], color=['b','r','y'],stacked=True, bins=70)
         plt.legend(['Non-Events', 'Test events', 'Train events'])
         plt.xlabel("Score")
@@ -157,10 +172,11 @@ class EstimateLikelihood():
 
 
 es = EstimateLikelihood()
-with open('data\\dates.txt', 'r') as f:
-    reade = csv.reader(f, delimiter='\n')
-    dates= list(reade)
-print(dates)
+with open('data\\dates_and_percente_of_change_by_volume.txt', 'r') as f:
+    reade = pd.read_table(f, header=None, index_col=None)
+    reade.columns = ['dates','change']
+    dates = np.array(reade.dates[abs(reade.change) > 65])
+print(len(dates))
 random.shuffle(dates)
 print(len(dates))
 train, test = dates[:80], dates[80:]
