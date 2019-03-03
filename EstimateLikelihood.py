@@ -2,6 +2,11 @@ import csv
 import nltk
 from nltk.stem.snowball import EnglishStemmer
 import numpy as np
+import time
+import matplotlib.pyplot as plt
+import random
+import json
+import scipy.stats as stat
 
 
 class EstimateLikelihood():
@@ -23,24 +28,52 @@ class EstimateLikelihood():
         :return: Only updates the fields of the object
         """
         print("Calculating the null hypothesis...")
-        file = open("data\\reddit.csv", encoding="utf8")
-        reader = csv.reader(file)
-        stops = nltk.corpus.stopwords.words('english')
-        next(reader)
-        sw_tok = EnglishStemmer()
-        for line in reader:
-            tokens = [sw_tok.stem(x) for x in nltk.RegexpTokenizer(r'\w\w+|U S').tokenize(line[4])]
-            self.all_dates[line[1]] = [x for x in tokens if x not in stops]
-            for word in self.all_dates[line[1]]:
-                self.alternative[word] = 0
-                if word in self.null.keys():
-                    self.null[word] += 1
-                else:
-                    self.null[word] = 1
-                self.total += 1
-        for word in self.null.keys():
-            self.null[word] /= self.total
-
+        start = time.time()
+        # file = open("data\\reddit.csv", encoding="utf8")
+        # reader = csv.reader(file)
+        # stops = nltk.corpus.stopwords.words('english')
+        # next(reader)
+        # sw_tok = EnglishStemmer()
+        # for line in reader:
+        #     tokens = [sw_tok.stem(x) for x in nltk.RegexpTokenizer(r'\w\w+|U S').tokenize(line[4])]
+        #     self.all_dates[line[1]] = [x for x in tokens if x not in stops]
+        #     for word in self.all_dates[line[1]]:
+        #         self.alternative[word] = 0
+        #         if word in self.null.keys():
+        #             self.null[word] += 1
+        #         else:
+        #             self.null[word] = 1
+        #         self.total += 1
+        # for word in self.null.keys():
+        #     self.null[word] /= self.total
+        # print("time: " + str(time.time() - start))
+        # file = open("null.txt", 'w', encoding="utf8")
+        # for key in self.null.keys():
+        #     file.write(key)
+        #     file.write(' ')
+        #     file.write(str(self.null[key]))
+        #     file.write('\n')
+        # file.close()
+        # file = open("all_dates.txt", 'w', encoding="utf8")
+        # for key in self.all_dates.keys():
+        #     file.write(key)
+        #     file.write(' ')
+        #     file.write(str(self.all_dates[key]))
+        #     file.write('\n')
+        # file.close()
+        # with open("null.json", 'w+') as f:
+        #     json.dump(self.null, f)
+        # with open("all_dates.json", 'w+') as f:
+        #     json.dump(self.all_dates, f)
+        #
+        with open("null.json", 'r') as f:
+            temp = json.loads(f.read())
+        self.null = temp
+        with open("all_dates.json", 'r') as f:
+            temp = json.loads(f.read())
+        self.all_dates = temp
+        self.alternative = {word: 0 for word in self.null.keys()}
+        print("time: " + str(time.time() - start))
 
     def count_words_by_date(self, date):
         """
@@ -81,44 +114,71 @@ class EstimateLikelihood():
         tokens = []
         for i in range(6):
             tokens += self.all_dates[srt[indx - i]]
-        local_count = {}
-        local_total = 0
+        keys = self.null.keys()
+        score = []
         for word in tokens:
-            local_total += 1
-            if word in local_count.keys():
-                local_count[word] += 1
-            else:
-                local_count[word] = 1
+            if word in keys:
+                score.append(self.alternative[word] / self.null[word])
+        return np.mean(np.array(score))
 
-        # llrs = []
-        for word in tokens:
-            counter = 0
-            for event in self.events_by_words[word]:
-                if np.log((np.power(event, local_count[word]) * np.power((1 - event), (local_total - local_count[word]))) /
-                                  (np.power(self.null[word], local_count[word]) *
-                                    np.power((1 - self.null[word]), (local_total - local_count[word])))) > 0:
-                    counter += 1
+
+    def show_histogram(self, test, train):
+        scores = []
+        test_score = []
+        train_score = []
+        i = 0
+        for date in self.all_dates.keys():
+            if date in test:
+                test_score.append(self.estimate_event(date))
+            elif date in train:
+                t = self.estimate_event(date)
+                if t > 100:
+                    continue
+                train_score.append(t)
+            else:
+                if i > len(train_score):
+                    continue
                 else:
-                    counter -= 1
-            if counter > 0:
-                print(word)
-                print(date)
+                    i += 1
+                scores.append(self.estimate_event(date))
+        print(len(test_score))
+        print(len(train_score))
+        print("kw p val: " + str(stat.kruskal(scores, test_score)[1]))
+        plt.hist([scores, test_score, train_score], color=['b','r','y'],stacked=True, bins=70)
+        plt.legend(['Non-Events', 'Test events', 'Train events'])
+        plt.xlabel("Score")
+        plt.ylabel("Number of events")
+        plt.show()
+
+
 
 
 
 
 
 es = EstimateLikelihood()
-es.count_word_from_list_of_dates(['2005-01-03', '2005-01-04', '2006-01-04', '2007-01-04', '2008-01-04', '2008-01-07', '2008-01-16', '2008-03-24', '2009-01-14', '2009-01-15', '2010-01-04', '2011-01-03', '2011-01-04', '2011-08-05'])
-es.estimate_event('2010-01-06')
-es.estimate_event('2010-01-07')
-es.estimate_event('2010-01-08')
-es.estimate_event('2010-01-09')
-es.estimate_event('2010-01-10')
-es.estimate_event('2011-08-05')
-es.estimate_event('2011-08-06')
-es.estimate_event('2011-08-07')
-es.estimate_event('2011-08-08')
+with open('data\\dates.txt', 'r') as f:
+    reade = csv.reader(f, delimiter='\n')
+    dates= list(reade)
+print(dates)
+random.shuffle(dates)
+print(len(dates))
+train, test = dates[:80], dates[80:]
+es.count_word_from_list_of_dates(np.array(train).ravel())
+es.show_histogram(np.array(test).ravel(), np.array(train).ravel())
+# es.estimate_event('2010-01-02')
+# es.estimate_event('2010-01-03')
+# es.estimate_event('2010-01-04')
+# es.estimate_event('2010-01-05')
+# es.estimate_event('2010-01-06')
+# es.estimate_event('2010-01-07')
+# es.estimate_event('2010-01-08')
+# es.estimate_event('2010-01-09')
+# es.estimate_event('2010-01-10')
+# es.estimate_event('2011-08-05')
+# es.estimate_event('2011-08-06')
+# es.estimate_event('2011-08-07')
+# es.estimate_event('2011-08-08')
 # es.count_words_by_date("2011-01-04")
 
 
